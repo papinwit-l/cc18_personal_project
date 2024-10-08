@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  username     String
+  password     String
+  Profile      Profile[]
+  users        Friend[]      @relation(name: "users")
+  friends      Friend[]      @relation(name: "friends")
+  ChatMessages ChatMessage[]
+  ChatMember   ChatMember[]
+}
+
+model Profile {
+  id           Int    @id @default(autoincrement())
+  name         String
+  user         User   @relation(fields: [userId], references: [id])
+  userId       Int
+  profileImage String @default("https://www.svgrepo.com/show/442075/avatar-default-symbolic.svg")
+}
+
+model Friend {
+  id        Int          @id @default(autoincrement())
+  user      User         @relation(fields: [userId], references: [id], name: "users")
+  userId    Int
+  friend    User         @relation(fields: [friendId], references: [id], name: "friends")
+  friendId  Int
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  status    FriendStatus
+}
+
+enum FriendStatus {
+  PENDING
+  FRIEND
+  REQUESTED
+}
+
+model Chat {
+  id           Int           @id @default(autoincrement())
+  ChatMessages ChatMessage[]
+  ChatMembers  ChatMember[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  name         String        @default("New Chat")
+  description  String
+  type         ChatType
+}
+
+enum ChatType {
+  GROUP
+  PRIVATE
+}
+
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  chatId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  message   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatMember {
+  id       Int      @id @default(autoincrement())
+  chat     Chat     @relation(fields: [chatId], references: [id])
+  chatId   Int
+  user     User     @relation(fields: [userId], references: [id])
+  userId   Int
+  joinedAt DateTime @default(now())
+}
