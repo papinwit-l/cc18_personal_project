@@ -1,5 +1,7 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
+const morgan = require("morgan");
 const app = express();
 
 //routes imports
@@ -7,6 +9,8 @@ const authRoute = require("./routes/auth-route");
 const errorHandler = require("./middlewares/error");
 
 //middlwares
+app.use(morgan("dev"));
+app.use(cors());
 app.use(express.json());
 
 // //routes

@@ -3,3 +3,5 @@ const createError = (status, message) => {
   err.statusCode = status;
   throw err;
 };
+
+module.exports = createError;

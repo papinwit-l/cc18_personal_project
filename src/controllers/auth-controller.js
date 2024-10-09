@@ -1,7 +1,9 @@
 const bcryptjs = require("bcryptjs");
 const prisma = require("../config/prisma");
+const createError = require("../utils/createError");
+const jwt = require("jsonwebtoken");
 
-module.exports.login = async (req, res) => {
+module.exports.login = async (req, res, next) => {
   try {
     const { identity, password } = req.body;
 
@@ -11,7 +13,7 @@ module.exports.login = async (req, res) => {
     }
     //check identity key
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const usernameRegex = /^[a-zA-Z0-9_]{6,20}$/;
+    const usernameRegex = /^[a-zA-Z0-9_]{5,20}$/;
     const isEmail = emailRegex.test(identity);
     const isUsername = usernameRegex.test(identity);
     if (!isEmail && !isUsername) {
@@ -25,9 +27,17 @@ module.exports.login = async (req, res) => {
         [identityKey]: identity,
       },
     });
+
     if (!existingUser) {
-      return createError(400, "Invalid credentials");
+      return createError(400, "Username or email or password incorrect");
     }
+
+    const profile = await prisma.profile.findFirst({
+      where: {
+        userId: existingUser.id,
+      },
+    });
+
     // Check if password is correct
     const isPasswordCorrect = await bcryptjs.compare(
       password,
@@ -48,13 +58,15 @@ module.exports.login = async (req, res) => {
 
     //set response user
     const { password: pwd, ...user } = existingUser;
+    // console.log(user);
     // Send response
     res.status(200).json({
       message: "Login successful",
       accessToken: token,
-      user,
+      user: { ...user, profile },
     });
   } catch (error) {
+    console.log(error);
     next(error);
   }
 };
@@ -74,14 +86,14 @@ module.exports.register = async (req, res, next) => {
       return createError(400, "Invalid email format");
     }
     // Check if username is valid
-    const usernameRegex = /^[a-zA-Z0-9_]{6,20}$/;
+    const usernameRegex = /^[a-zA-Z0-9_]{5,20}$/;
     if (!usernameRegex.test(username)) {
       return createError(400, "Invalid username format");
     }
 
     // Check if password is valid (e.g., minimum length)
     if (password.length < 8) {
-      createError(400, "Password must be at least 8 characters long");
+      return createError(400, "Password must be at least 8 characters long");
     }
 
     // Check if password and confirm password match
@@ -104,11 +116,17 @@ module.exports.register = async (req, res, next) => {
     const hashedPassword = await bcryptjs.hash(password, salt);
 
     // Create user
-    const newUser = prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         username,
         email,
         password: hashedPassword,
+      },
+    });
+    const newProfile = await prisma.profile.create({
+      data: {
+        userId: newUser.id,
+        name: username,
       },
     });
 
@@ -119,13 +137,16 @@ module.exports.register = async (req, res, next) => {
 
     //set response user
     const { password: pwd, ...user } = newUser;
+    // console.log(user);
     // Send response
     res.status(201).json({
       message: "User registered successfully",
       accessToken: token,
-      user: user,
+      user: { ...user, profile: newProfile },
     });
+    // res.json({ message: "User registered successfully" });
   } catch (error) {
+    console.log(error);
     next(error);
   }
 };
