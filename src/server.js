@@ -4,16 +4,16 @@ const app = express();
 
 //routes imports
 const authRoute = require("./routes/auth-route");
-const errorHandler = require("./middlewares/error-handler");
+const errorHandler = require("./middlewares/error");
 
 //middlwares
 app.use(express.json());
 
-//routes
+// //routes
 app.use("/auth", authRoute);
 
-//handle errors
+// //handle errors
 app.use(errorHandler);
 
 const PORT = process.env.PORT;
-app.listesten(PORT, () => console.log(`Server is running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
