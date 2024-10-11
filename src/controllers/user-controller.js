@@ -198,3 +198,28 @@ module.exports.acceptFriendRequest = async (req, res, next) => {
     next(error);
   }
 };
+
+module.exports.getPendingRequest = async (req, res, next) => {
+  try {
+    const result = await prisma.friend.findMany({
+      where: {
+        userId: +req.user.id,
+        status: "PENDING",
+      },
+      include: {
+        friend: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            Profile: true,
+          },
+        },
+      },
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};

@@ -131,7 +131,12 @@ module.exports.register = async (req, res, next) => {
     });
 
     // Generate token
-    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
+    const payload = {
+      id: newUser.id,
+      username: newUser.username,
+      email: newUser.email,
+    };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "30d",
     });
 
