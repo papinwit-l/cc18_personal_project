@@ -18,6 +18,7 @@ const io = new Server(server, {
 const authRoute = require("./routes/auth-route");
 const socketRoute = require("./routes/socket-route");
 const userRoute = require("./routes/user-route");
+const chatRoute = require("./routes/chat-route");
 
 //middlewares imports
 const errorHandler = require("./middlewares/error");
@@ -39,6 +40,7 @@ app.use((req, res, next) => {
 // //routes
 app.use("/auth", authRoute);
 app.use("/user", authenticate, userRoute);
+app.use("/chat", authenticate, chatRoute);
 
 // //handle errors
 app.use(errorHandler);
