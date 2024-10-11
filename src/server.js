@@ -23,6 +23,11 @@ const userRoute = require("./routes/user-route");
 const errorHandler = require("./middlewares/error");
 const authenticate = require("./middlewares/authenticate");
 
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 //socket.io
 io.on("connection", socketRoute);
 

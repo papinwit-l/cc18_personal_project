@@ -7,6 +7,12 @@ const socketRoute = (socket) => {
   //     console.log(data);
   //     socket.broadcast.emit("message", data);
   //   });
+
+  socket.on("friendUpdate", (data) => {
+    console.log(data);
+    socket.broadcast.emit("friendUpdate", data);
+  });
+
   socket.on("disconnect", socketControler.disconnect(socket));
 };
 module.exports = socketRoute;
