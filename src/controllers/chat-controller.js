@@ -125,14 +125,14 @@ module.exports.getAllPrivateChats = async (req, res, next) => {
 module.exports.getChatMessages = async (req, res, next) => {
   try {
     const { chatId } = req.params;
-    const chat = await prisma.chatMessage.findMany({
+    const chatMessages = await prisma.chatMessage.findMany({
       where: {
-        chatId,
+        chatId: +chatId,
       },
     });
     res.status(200).json({
       message: "Chat messages fetched successfully",
-      chat,
+      chatMessages,
     });
   } catch (error) {
     console.log(error);
