@@ -25,7 +25,7 @@ const errorHandler = require("./middlewares/error");
 const authenticate = require("./middlewares/authenticate");
 
 //socket.io
-io.on("connection", socketRoute);
+io.on("connection", socketRoute(io));
 
 //middlwares
 app.use(morgan("dev"));
@@ -41,6 +41,7 @@ app.use((req, res, next) => {
 app.use("/auth", authRoute);
 app.use("/user", authenticate, userRoute);
 app.use("/chat", authenticate, chatRoute);
+app.use("/group", authenticate, chatRoute);
 
 // //handle errors
 app.use(errorHandler);

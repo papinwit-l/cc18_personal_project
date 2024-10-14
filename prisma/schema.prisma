@@ -14,32 +14,33 @@ datasource db {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  email        String        @unique
-  username     String        @unique
-  password     String
-  Profile      Profile[]
-  users        Friend[]      @relation(name: "users")
-  friends      Friend[]      @relation(name: "friends")
-  ChatMessages ChatMessage[]
-  ChatMember   ChatMember[]
+  id                Int                 @id @default(autoincrement())
+  email             String              @unique
+  username          String              @unique
+  password          String
+  Profile           Profile[]
+  users             Friend[]            @relation(name: "users")
+  friends           Friend[]            @relation(name: "friends")
+  ChatMessages      ChatMessage[]
+  ChatMember        ChatMember[]
+  ChatPendingMember ChatPendingMember[]
 }
 
 model Profile {
   name         String
   user         User   @relation(fields: [userId], references: [id])
-  userId       Int    @id
-  profileImage String @default("https://www.svgrepo.com/show/442075/avatar-default-symbolic.svg")
+  userId       Int    @id @map("user_id")
+  profileImage String @default("https://www.svgrepo.com/show/442075/avatar-default-symbolic.svg") @map("profile_image")
 }
 
 model Friend {
   id        Int          @id @default(autoincrement())
   user      User         @relation(fields: [userId], references: [id], name: "users")
-  userId    Int
+  userId    Int          @map("user_id")
   friend    User         @relation(fields: [friendId], references: [id], name: "friends")
-  friendId  Int
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  friendId  Int          @map("friend_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
   status    FriendStatus
 }
 
@@ -47,40 +48,72 @@ enum FriendStatus {
   PENDING
   FRIEND
   REQUESTED
+
+  @@map("friend_status")
 }
 
 model Chat {
-  id           Int           @id @default(autoincrement())
-  ChatMessages ChatMessage[]
-  ChatMembers  ChatMember[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  name         String        @default("New Chat")
-  description  String?
-  type         ChatType
+  id                Int                 @id @default(autoincrement())
+  ChatMessages      ChatMessage[]
+  ChatMembers       ChatMember[]
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  name              String              @default("New Chat")
+  description       String?
+  type              ChatType
+  chatImage         String?             @map("chat_image")
+  ChatPendingMember ChatPendingMember[]
 }
 
 enum ChatType {
   GROUP
   PRIVATE
+
+  @@map("chat_type")
 }
 
 model ChatMessage {
-  id        Int      @id @default(autoincrement())
-  chat      Chat     @relation(fields: [chatId], references: [id])
-  chatId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
-  message   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          Int             @id @default(autoincrement())
+  chat        Chat            @relation(fields: [chatId], references: [id])
+  chatId      Int             @map("chat_id")
+  user        User            @relation(fields: [userId], references: [id])
+  userId      Int             @map("user_id")
+  message     String
+  messageType ChatMessageType @map("message_type")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@map("chat_message")
+}
+
+enum ChatMessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+
+  @@map("chat_message_type")
 }
 
 model ChatMember {
   id       Int      @id @default(autoincrement())
   chat     Chat     @relation(fields: [chatId], references: [id])
-  chatId   Int
+  chatId   Int      @map("chat_id")
   user     User     @relation(fields: [userId], references: [id])
-  userId   Int
-  joinedAt DateTime @default(now())
+  userId   Int      @map("user_id")
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  @@map("chat_member")
+}
+
+model ChatPendingMember {
+  id        Int      @id @default(autoincrement())
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  chatId    Int      @map("chat_id")
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int      @map("user_id")
+  invitedAt DateTime @default(now()) @map("invited_at")
+
+  @@map("chat_pending_member")
 }

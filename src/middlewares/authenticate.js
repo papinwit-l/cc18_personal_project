@@ -21,7 +21,7 @@ module.exports = async (req, res, next) => {
       req.user = decode;
     });
 
-    console.log(req.user);
+    // console.log(req.user);
     const findUser = await prisma.user.findUnique({
       where: { id: +req.user.id },
     });

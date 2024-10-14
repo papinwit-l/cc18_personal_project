@@ -67,7 +67,7 @@ module.exports.findUser = async (req, res, next) => {
         friends: user.friends,
       };
     });
-    console.log(user);
+    // console.log(user);
     res.status(200).json(user);
   } catch (error) {
     console.log(error);
@@ -104,7 +104,10 @@ module.exports.addFriend = async (req, res, next) => {
         status: "PENDING",
       },
     });
-    req.io.emit("friendUpdate", { result, result2 });
+    console.log("friendUpdate-" + req.user.id);
+    console.log("friendUpdate-" + friendId);
+    req.io.emit("friendUpdate-" + req.user.id, { result, result2 });
+    req.io.emit("friendUpdate-" + friendId, { result, result2 });
     res.status(200).json({ result, result2 });
   } catch (error) {
     console.log(error);
@@ -138,7 +141,7 @@ module.exports.removeFriendRequest = async (req, res, next) => {
         ],
       },
     });
-    req.io.emit("friendUpdate", {
+    req.io.emit("friendUpdate-" + req.user.id, {
       result: {
         userId: +req.user.id,
         friendId: +friendId,
@@ -150,6 +153,30 @@ module.exports.removeFriendRequest = async (req, res, next) => {
         status: "",
       },
     });
+    req.io.emit("friendUpdate-" + friendId, {
+      result: {
+        userId: +req.user.id,
+        friendId: +friendId,
+        status: "",
+      },
+      result2: {
+        userId: +friendId,
+        friendId: +req.user.id,
+        status: "",
+      },
+    });
+    // req.io.emit("friendUpdate", {
+    // result: {
+    //   userId: +req.user.id,
+    //   friendId: +friendId,
+    //   status: "",
+    // },
+    // result2: {
+    //   userId: +friendId,
+    //   friendId: +req.user.id,
+    //   status: "",
+    // },
+    // });
     res.status(200).json({ message: "Friend request removed" });
   } catch (error) {
     console.log(error);
@@ -191,7 +218,9 @@ module.exports.acceptFriendRequest = async (req, res, next) => {
         status: "FRIEND",
       },
     });
-    req.io.emit("friendUpdate", { result, result2 });
+    // req.io.emit("friendUpdate", { result, result2 });
+    req.io.emit("friendUpdate-" + req.user.id, { result, result2 });
+    req.io.emit("friendUpdate-" + friendId, { result, result2 });
     res.status(200).json({ message: "Friend request accepted" });
   } catch (error) {
     console.log(error);
