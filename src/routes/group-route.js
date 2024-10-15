@@ -1,8 +1,17 @@
 const express = require("express");
 const router = express.Router();
 
-const grouyupController = require("../controllers/group-controller");
+const groupController = require("../controllers/group-controller");
 
-router.post("/creategroup/", grouyupController.createGroup);
+router.post("/creategroup/", groupController.createGroup);
+router.get(
+  "/getpendinggroupmembers/:groupId",
+  groupController.getPendingGroupMembers
+);
+router.get("/getpendinglist", groupController.getGroupPendingList);
+router.get("/getgroupmembers/:groupId", groupController.getGroupMembers);
+router.get("/getgrouplist", groupController.getGroupList);
+router.put("/acceptinvite/:groupId", groupController.acceptGroupInvite);
+router.delete("/rejectinvite/:groupId", groupController.rejectGroupInvite);
 
 module.exports = router;
