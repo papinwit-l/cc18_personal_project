@@ -1,8 +1,5 @@
 const prisma = require("../config/prisma");
 const cloudinary = require("../config/cloudinary");
-const multer = require("multer");
-const path = require("path");
-const e = require("express");
 
 module.exports.message = (socket, io) => async (data) => {
   try {
@@ -40,7 +37,7 @@ module.exports.identify = (socket) => async (data) => {
   });
   for (const member of chatMember) {
     const roomName = member.chatId;
-    console.log(String(roomName));
+    // console.log(String(roomName));
     socket.join(String(roomName));
     console.log(`User ${userId} joined room: ${roomName}`);
 
@@ -56,7 +53,7 @@ module.exports.imageSend = (socket, io) => async (data) => {
     // Upload image to Cloudinary
     const uploadResult = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: "chat_images" },
+        { folder: "chat_images_" + chatId },
         (error, result) => {
           if (error) reject(error);
           else resolve(result);

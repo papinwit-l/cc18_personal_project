@@ -1,7 +1,11 @@
 const prisma = require("../config/prisma");
 const createError = require("../utils/createError");
 const { message } = require("./socket-controller");
+const cloudinary = require("../config/cloudinary");
 const io = require("socket.io");
+const fs = require("fs");
+const multer = require("multer");
+const streamifier = require("streamifier");
 
 module.exports.getFriends = async (req, res, next) => {
   try {
@@ -251,4 +255,77 @@ module.exports.getPendingRequest = async (req, res, next) => {
     console.log(error);
     next(error);
   }
+};
+
+const upload = multer({ storage: multer.memoryStorage() }).single(
+  "profileImage"
+);
+
+module.exports.editProfile = async (req, res, next) => {
+  upload(req, res, async (err) => {
+    if (err) {
+      return next(err);
+    }
+
+    try {
+      const name = req.body?.name;
+      if (!name) {
+        return res.status(400).json({ error: "Name is required" });
+      }
+
+      const profileImage = req.file; // Multer saves the file buffer here
+      if (profileImage) {
+        // Upload image to Cloudinary using stream
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            { folder: "profile_" + req.user.id },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          streamifier.createReadStream(profileImage.buffer).pipe(uploadStream);
+        });
+
+        // Get the image URL from Cloudinary
+        const imageUrl = uploadResult.secure_url;
+        console.log(imageUrl);
+
+        // Update profile image in the database
+        await prisma.profile.update({
+          where: {
+            userId: +req.user.id,
+          },
+          data: {
+            profileImage: imageUrl,
+          },
+        });
+      }
+
+      // Update profile name
+      const newProfile = await prisma.profile.update({
+        where: {
+          userId: +req.user.id,
+        },
+        data: {
+          name: name,
+        },
+      });
+
+      // Fetch the updated user
+      const findUser = await prisma.user.findUnique({
+        where: {
+          id: +req.user.id,
+        },
+      });
+
+      const { password: pwd, ...user } = findUser;
+
+      // Send response
+      res.status(200).json({ ...user, profile: newProfile });
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  });
 };
