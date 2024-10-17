@@ -16,7 +16,7 @@ module.exports.message = (socket, io) => async (data) => {
     });
     console.log(result);
 
-    io.to(String(chatId)).emit("message", { message: result });
+    io.to(String(chatId)).emit("message-" + chatId, { message: result });
   } catch (error) {
     console.log(error);
   }

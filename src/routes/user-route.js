@@ -12,5 +12,6 @@ router.post("/addfriend/:friendId", userController.addFriend);
 router.put("/acceptrequest/:friendId", userController.acceptFriendRequest);
 router.delete("/removerequest/:friendId", userController.removeFriendRequest);
 router.patch("/editprofile", userController.editProfile);
+router.delete("/unfriend/:friendId", userController.unfriend);
 
 module.exports = router;

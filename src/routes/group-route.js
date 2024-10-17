@@ -14,5 +14,7 @@ router.get("/getgroupmembers/:groupId", groupController.getGroupMembers);
 router.get("/getgrouplist", groupController.getGroupList); //
 router.put("/acceptinvite/:groupId", groupController.acceptGroupInvite); //
 router.delete("/rejectinvite/:groupId", groupController.rejectGroupInvite); //
+router.delete("/leavegroup/:groupId", groupController.leaveGroup); //
+router.patch("/editprofile/", groupController.updateGroupDetail); //
 
 module.exports = router;

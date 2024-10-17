@@ -1,4 +1,8 @@
 const prisma = require("../config/prisma");
+const createError = require("../utils/createError");
+const multer = require("multer");
+const cloudinary = require("../config/cloudinary");
+const streamifier = require("streamifier");
 
 module.exports.createGroup = async (req, res, next) => {
   try {
@@ -219,9 +223,30 @@ module.exports.acceptGroupInvite = async (req, res, next) => {
       },
     });
 
+    const findGroup = await prisma.chat.findUnique({
+      where: {
+        id: +groupId,
+      },
+      include: {
+        ChatMembers: {
+          select: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                Profile: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
     groupMembers.map((member) => {
       io.emit("groupMemberUpdate-" + member.user.id, {
-        groupMembers,
+        groupMembers: groupMembers,
+        group: findGroup,
       });
     });
 
@@ -263,4 +288,267 @@ module.exports.rejectGroupInvite = async (req, res, next) => {
     console.log(error);
     next(error);
   }
+};
+
+module.exports.leaveGroup = async (req, res, next) => {
+  try {
+    const io = req.io;
+    const { groupId } = req.params;
+    //check no member left
+    const groupMembers = await prisma.chatMember.findMany({
+      where: {
+        chatId: +groupId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            Profile: true,
+          },
+        },
+      },
+    });
+    if (groupMembers.length === 1) {
+      //delete all messages
+      const deleteMessages = await prisma.chatMessage.deleteMany({
+        where: {
+          chatId: +groupId,
+        },
+      });
+      //delete all members
+      const findGroupMember = await prisma.chatMember.findFirst({
+        where: {
+          chatId: +groupId,
+          userId: +req.user.id,
+        },
+      });
+      const deleteMembers = await prisma.chatMember.delete({
+        where: {
+          id: +findGroupMember.id,
+        },
+      });
+      //delete group
+      const deleteGroup = await prisma.chat.delete({
+        where: {
+          id: +groupId,
+        },
+      });
+      const updatedGroupMembers = await prisma.chatMember.findMany({
+        where: {
+          chatId: +groupId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              Profile: true,
+            },
+          },
+        },
+      });
+      io.emit("groupUpdate-" + req.user.id, {
+        updatedGroupMembers,
+      });
+    } else {
+      //delete member
+      const findMember = await prisma.chatMember.findFirst({
+        where: {
+          chatId: +groupId,
+          userId: +req.user.id,
+        },
+      });
+      const deleteMembers = await prisma.chatMember.delete({
+        where: {
+          id: +findMember.id,
+        },
+      });
+      //find remaining members
+      const remainingMembers = await prisma.chatMember.findMany({
+        where: {
+          chatId: +groupId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              Profile: true,
+            },
+          },
+        },
+      });
+      const findGroup = await prisma.chat.findUnique({
+        where: {
+          id: +groupId,
+        },
+        include: {
+          ChatMembers: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  email: true,
+                  Profile: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      //emit event to remaining members
+      remainingMembers.map((member) => {
+        console.log(member);
+        io.emit("groupMemberUpdate-" + member.user.id, {
+          group: findGroup,
+          groupChatMembers: remainingMembers,
+        });
+        io.emit("groupUpdate-" + member.user.id, {
+          groupMembers: remainingMembers,
+        });
+      });
+      io.emit("groupUpdate-" + req.user.id, {
+        message: "Group left",
+      });
+    }
+
+    res.json({ message: "Group left" });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+module.exports.inviteFriend = async (req, res, next) => {
+  try {
+    const io = req.io;
+    const { groupId, inviteFriend } = req.body;
+    const user = req.user;
+    //check if friend is already invited
+    const checkInvite = await prisma.chatPendingMember.findFirst({
+      where: {
+        chatId: +groupId,
+        userId: +inviteFriend.id,
+      },
+    });
+    if (checkInvite) {
+      return createError(400, "Friend already invited");
+    }
+    const inviteFriendToGroup = await prisma.chatPendingMember.create({
+      data: {
+        userId: +inviteFriend.id,
+        chatId: +groupId,
+      },
+    });
+    io.emit("groupPendingMember-" + inviteFriend.id, {
+      groupId,
+    });
+    res.json({ message: "Friend invited" });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const upload = multer({ storage: multer.memoryStorage() }).single("groupImage");
+
+module.exports.updateGroupDetail = async (req, res, next) => {
+  upload(req, res, async (err) => {
+    if (err) {
+      return next(err);
+    }
+    try {
+      const io = req.io;
+
+      console.log(req.body);
+
+      const name = req.body?.groupName;
+      if (!name) {
+        return createError(400, "Group name is required");
+      }
+
+      const groupId = req.body?.groupId;
+      if (!groupId) {
+        return createError(400, "Group id is required");
+      }
+
+      const groupImage = req.file;
+      if (groupImage) {
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            { folder: "group_" + groupId },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          streamifier.createReadStream(profileImage.buffer).pipe(uploadStream);
+        });
+
+        const imageUrl = uploadResult.secure_url;
+        console.log(imageUrl);
+
+        const updateGroup = await prisma.chat.update({
+          where: {
+            id: +groupId,
+          },
+          data: {
+            image: imageUrl,
+          },
+        });
+      }
+
+      const updateGroup = await prisma.chat.update({
+        where: {
+          id: +groupId,
+        },
+        data: {
+          name: name,
+        },
+        include: {
+          ChatMembers: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  email: true,
+                  Profile: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const findMembers = await prisma.chatMember.findMany({
+        where: {
+          chatId: +groupId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              Profile: true,
+            },
+          },
+        },
+      });
+
+      findMembers.map((member) => {
+        io.emit("groupUpdate-" + member.user.id, {
+          updateGroup,
+        });
+      });
+
+      res.json({ message: "Group updated" });
+    } catch (error) {
+      console.log(error);
+    }
+  });
 };

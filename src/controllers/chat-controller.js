@@ -74,6 +74,10 @@ module.exports.createChat = async (req, res, next) => {
       },
     });
 
+    chat.ChatMembers.map((member) => {
+      socket.emit("newChat-" + member.userId, chat);
+    });
+
     res.status(201).json({
       message: "Chat created successfully",
       chat,
@@ -133,6 +137,29 @@ module.exports.getChatMessages = async (req, res, next) => {
     res.status(200).json({
       message: "Chat messages fetched successfully",
       chatMessages,
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+module.exports.getSenderDetails = async (req, res, next) => {
+  try {
+    const { senderId } = req.params;
+    const result = await prisma.user.findFirst({
+      where: {
+        id: +senderId,
+      },
+      include: {
+        Profile: true,
+      },
+    });
+
+    const { password, ...sender } = result;
+    res.status(200).json({
+      message: "Sender details fetched successfully",
+      sender,
     });
   } catch (error) {
     console.log(error);

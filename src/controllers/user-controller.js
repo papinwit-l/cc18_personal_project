@@ -329,3 +329,87 @@ module.exports.editProfile = async (req, res, next) => {
     }
   });
 };
+
+module.exports.unfriend = async (req, res, next) => {
+  try {
+    const { friendId } = req.params;
+    const findRequest = await prisma.friend.findFirst({
+      where: {
+        userId: +req.user.id,
+        friendId: +friendId,
+      },
+    });
+    if (!findRequest) {
+      return createError(400, "You are not friend");
+    }
+    const result = await prisma.friend.delete({
+      where: {
+        id: findRequest.id,
+      },
+    });
+    const findRequest2 = await prisma.friend.findFirst({
+      where: {
+        userId: +friendId,
+        friendId: +req.user.id,
+      },
+    });
+    if (!findRequest2) {
+      return createError(400, "You are not friend");
+    }
+    const result2 = await prisma.friend.delete({
+      where: {
+        id: findRequest2.id,
+      },
+    });
+    //find privatechat
+    const privateChat = await prisma.chat.findFirst({
+      where: {
+        AND: [
+          {
+            type: "PRIVATE",
+          },
+          {
+            ChatMembers: {
+              some: {
+                userId: +req.user.id,
+              },
+            },
+          },
+          {
+            ChatMembers: {
+              some: {
+                userId: +friendId,
+              },
+            },
+          },
+        ],
+      },
+    });
+    //delete all message in private chat
+    if (privateChat) {
+      await prisma.chatMessage.deleteMany({
+        where: {
+          chatId: privateChat.id,
+        },
+      });
+      await prisma.chatMember.deleteMany({
+        where: {
+          chatId: privateChat.id,
+        },
+      });
+      await prisma.chat.delete({
+        where: {
+          id: privateChat.id,
+        },
+      });
+    }
+
+    // req.io.emit("friendUpdate", { result, result2 });
+    req.io.emit("friendUpdate-" + req.user.id, { result, result2 });
+    req.io.emit("friendUpdate-" + friendId, { result, result2 });
+    res.status(200).json({ message: "Friend removed" });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
