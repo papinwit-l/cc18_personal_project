@@ -113,12 +113,36 @@ module.exports.getAllPrivateChats = async (req, res, next) => {
             },
           },
         },
+        // sort by last message
+        ChatMessages: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 1,
+        },
       },
     });
 
+    const chatSorted = chats.sort((a, b) => {
+      const aLastMessage = a.ChatMessages[0];
+      const bLastMessage = b.ChatMessages[0];
+      if (aLastMessage && bLastMessage) {
+        return (
+          new Date(bLastMessage.createdAt) - new Date(aLastMessage.createdAt)
+        );
+      } else if (aLastMessage) {
+        return -1;
+      } else if (bLastMessage) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
+    console.log(chatSorted);
+
     res.status(200).json({
       message: "Chats fetched successfully",
-      chats,
+      chats: chatSorted,
     });
   } catch (error) {
     console.log(error);

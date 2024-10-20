@@ -134,8 +134,14 @@ module.exports.getGroupMembers = async (req, res, next) => {
 
 module.exports.getGroupList = async (req, res, next) => {
   try {
+    const { id: userId } = req.user;
     const result = await prisma.chat.findMany({
       where: {
+        ChatMembers: {
+          some: {
+            userId: +userId,
+          },
+        },
         type: "GROUP",
       },
       include: {
@@ -151,9 +157,26 @@ module.exports.getGroupList = async (req, res, next) => {
             },
           },
         },
+        //sort by last message
+        ChatMessages: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 1,
+        },
       },
     });
-    res.json(result);
+
+    const chatSorted = result.sort((a, b) => {
+      const aLastMessage = a.ChatMessages[0];
+      const bLastMessage = b.ChatMessages[0];
+      if (!aLastMessage) return 1;
+      if (!bLastMessage) return -1;
+      return bLastMessage.createdAt - aLastMessage.createdAt;
+    });
+    console.log(chatSorted);
+    console.log(result);
+    res.json(chatSorted);
   } catch (error) {
     console.log(error);
     next(error);
@@ -245,6 +268,10 @@ module.exports.acceptGroupInvite = async (req, res, next) => {
 
     groupMembers.map((member) => {
       io.emit("groupMemberUpdate-" + member.user.id, {
+        groupMembers: groupMembers,
+        group: findGroup,
+      });
+      io.emit("groupActiveMemberUpdate-" + member.user.id, {
         groupMembers: groupMembers,
         group: findGroup,
       });
@@ -350,6 +377,21 @@ module.exports.leaveGroup = async (req, res, next) => {
           },
         },
       });
+
+      const findNotify = await prisma.chatNotify.findFirst({
+        where: {
+          chatId: +groupId,
+          userId: +req.user.id,
+        },
+      });
+      if (findNotify) {
+        const deleteNotify = await prisma.chatNotify.delete({
+          where: {
+            id: +findNotify.id,
+          },
+        });
+      }
+
       io.emit("groupUpdate-" + req.user.id, {
         updatedGroupMembers,
       });
@@ -361,6 +403,9 @@ module.exports.leaveGroup = async (req, res, next) => {
           userId: +req.user.id,
         },
       });
+      if (!findMember) {
+        return res.status(404).json({ message: "Member not found" });
+      }
       const deleteMembers = await prisma.chatMember.delete({
         where: {
           id: +findMember.id,
@@ -412,6 +457,21 @@ module.exports.leaveGroup = async (req, res, next) => {
           groupMembers: remainingMembers,
         });
       });
+
+      const findNotify = await prisma.chatNotify.findFirst({
+        where: {
+          chatId: +groupId,
+          userId: +req.user.id,
+        },
+      });
+      if (findNotify) {
+        const deleteNotify = await prisma.chatNotify.delete({
+          where: {
+            id: +findNotify.id,
+          },
+        });
+      }
+
       io.emit("groupUpdate-" + req.user.id, {
         message: "Group left",
       });
@@ -542,6 +602,9 @@ module.exports.updateGroupDetail = async (req, res, next) => {
 
       findMembers.map((member) => {
         io.emit("groupUpdate-" + member.user.id, {
+          updateGroup,
+        });
+        io.emit("groupActiveUpdate-" + member.user.id, {
           updateGroup,
         });
       });

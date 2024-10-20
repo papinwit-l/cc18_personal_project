@@ -88,7 +88,10 @@ module.exports.register = async (req, res, next) => {
     // Check if username is valid
     const usernameRegex = /^[a-zA-Z0-9_]{5,20}$/;
     if (!usernameRegex.test(username)) {
-      return createError(400, "Invalid username format");
+      return createError(
+        400,
+        "Invalid username format. It should be 5-20 characters long and can contain a-z, A-Z, 0-9, and underscores."
+      );
     }
 
     // Check if password is valid (e.g., minimum length)
@@ -101,14 +104,24 @@ module.exports.register = async (req, res, next) => {
       return createError(400, "Passwords do not match");
     }
 
-    // Check if email or username exists
+    // Check if email exists
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ email }, { username }],
+        email,
       },
     });
     if (existingUser) {
-      return createError(400, "Email or username already exists");
+      return createError(400, "Email already exists");
+    }
+
+    // Check if username is already taken
+    const existingUsername = await prisma.user.findFirst({
+      where: {
+        username,
+      },
+    });
+    if (existingUsername) {
+      return createError(400, "Username already exists");
     }
 
     // Hash password

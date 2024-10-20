@@ -24,6 +24,7 @@ model User {
   ChatMessages      ChatMessage[]
   ChatMember        ChatMember[]
   ChatPendingMember ChatPendingMember[]
+  ChatNotify        ChatNotify[]
 }
 
 model Profile {
@@ -63,6 +64,7 @@ model Chat {
   type              ChatType
   chatImage         String?             @map("chat_image")
   ChatPendingMember ChatPendingMember[]
+  chatNotify        ChatNotify[]
 }
 
 enum ChatType {
@@ -116,4 +118,19 @@ model ChatPendingMember {
   invitedAt DateTime @default(now()) @map("invited_at")
 
   @@map("chat_pending_member")
+}
+
+model ChatNotify {
+  id        Int      @id @default(autoincrement())
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  chatId    Int      @map("chat_id")
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int      @map("user_id")
+  value     Boolean  @default(false)
+  messageId Int    @map("message_id")
+  chatType  ChatType @map("chat_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("chat_notify")
 }

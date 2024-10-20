@@ -403,7 +403,33 @@ module.exports.unfriend = async (req, res, next) => {
         },
       });
     }
-
+    //delete all chat notify
+    const findNotify = await prisma.chatNotify.findFirst({
+      where: {
+        userId: +req.user.id,
+        chatId: privateChat.id,
+      },
+    });
+    if (findNotify) {
+      await prisma.chatNotify.delete({
+        where: {
+          id: findNotify.id,
+        },
+      });
+    }
+    const findNotify2 = await prisma.chatNotify.findFirst({
+      where: {
+        userId: +friendId,
+        chatId: privateChat.id,
+      },
+    });
+    if (findNotify2) {
+      await prisma.chatNotify.delete({
+        where: {
+          id: findNotify2.id,
+        },
+      });
+    }
     // req.io.emit("friendUpdate", { result, result2 });
     req.io.emit("friendUpdate-" + req.user.id, { result, result2 });
     req.io.emit("friendUpdate-" + friendId, { result, result2 });

@@ -22,6 +22,10 @@ const socketRoute = (io) => (socket) => {
   socket.on("imageSend", socketControler.imageSend(socket, io));
   // socket.broadcast.to(String(6)).emit("message", "Hello");
 
+  socket.on("getChatNotify", socketControler.getChatNotify(socket));
+
+  socket.on("updateChatNotify", socketControler.updateReadChatNotify(socket));
+
   socket.on("disconnect", socketControler.disconnect(socket));
 };
 module.exports = socketRoute;
