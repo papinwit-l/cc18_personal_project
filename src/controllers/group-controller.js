@@ -480,36 +480,104 @@ module.exports.leaveGroup = async (req, res, next) => {
     res.json({ message: "Group left" });
   } catch (error) {
     console.log(error);
+    next(error);
   }
 };
 
 module.exports.inviteFriend = async (req, res, next) => {
   try {
     const io = req.io;
-    const { groupId, inviteFriend } = req.body;
-    const user = req.user;
-    //check if friend is already invited
-    const checkInvite = await prisma.chatPendingMember.findFirst({
-      where: {
-        chatId: +groupId,
-        userId: +inviteFriend.id,
-      },
-    });
-    if (checkInvite) {
-      return createError(400, "Friend already invited");
+    const { groupId, inviteList } = req.body;
+    const reqUser = req.user;
+    if (!groupId) {
+      return res.status(400).json({ message: "Group id is required" });
     }
-    const inviteFriendToGroup = await prisma.chatPendingMember.create({
-      data: {
-        userId: +inviteFriend.id,
-        chatId: +groupId,
+    if (!inviteList) {
+      return res.status(400).json({ message: "Invite list is required" });
+    }
+    //chesk if group exist
+    const findGroup = await prisma.chat.findUnique({
+      where: {
+        id: +groupId,
+      },
+      include: {
+        ChatMembers: {
+          select: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                Profile: true,
+              },
+            },
+          },
+        },
       },
     });
-    io.emit("groupPendingMember-" + inviteFriend.id, {
-      groupId,
+    if (!findGroup) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+    for (let i = 0; i < inviteList.length; i++) {
+      const findMember = await prisma.chatMember.findFirst({
+        where: {
+          chatId: +groupId,
+          userId: +inviteList[i].userId,
+        },
+      });
+      if (findMember) {
+        return createError(400, "Member already in group");
+      }
+      const findPending = await prisma.chatPendingMember.findFirst({
+        where: {
+          chatId: +groupId,
+          userId: +inviteList[i].userId,
+        },
+      });
+      if (findPending) {
+        return createError(400, "Member already invited");
+      }
+      console.log(groupId, inviteList[i].userId);
+      const createPending = await prisma.chatPendingMember.create({
+        data: {
+          chatId: +groupId,
+          userId: +inviteList[i].userId,
+        },
+      });
+      io.emit("groupUpdate-" + inviteList[i].userId, {
+        message: "You have been invited to a group",
+      });
+      io.emit("groupInviteUpdate-" + inviteList[i].userId, {
+        message: "You have invited " + inviteList[i].username + " to a group",
+      });
+      io.emit("groupMemberUpdate-" + inviteList[i].userId, {
+        message: "update member",
+      });
+      io.emit("groupPendingMember-" + inviteList[i].userId, {
+        message: "update member",
+      });
+    }
+    console.log("REQ ", reqUser.id);
+    if (
+      io.emit("groupInviteUpdate-" + reqUser.id, {
+        message: "You have invited " + reqUser.id + " to a group",
+      })
+    )
+      console.log("emite to", reqUser.id);
+    // io.emit("groupInviteUpdate-", reqUser.id, {
+    //   message: "You have invited " + reqUser.id + " to a group",
+    // });
+    io.emit("groupMemberUpdate-" + reqUser.id, {
+      message: "update member",
     });
-    res.json({ message: "Friend invited" });
+    io.emit("groupPendingMember-" + reqUser.id, {
+      message: "update member",
+    });
+
+    res.json({ message: "Invite sent" });
   } catch (error) {
     console.log(error);
+    next(error);
   }
 };
 
@@ -545,7 +613,7 @@ module.exports.updateGroupDetail = async (req, res, next) => {
               else resolve(result);
             }
           );
-          streamifier.createReadStream(profileImage.buffer).pipe(uploadStream);
+          streamifier.createReadStream(groupImage.buffer).pipe(uploadStream);
         });
 
         const imageUrl = uploadResult.secure_url;
@@ -556,7 +624,7 @@ module.exports.updateGroupDetail = async (req, res, next) => {
             id: +groupId,
           },
           data: {
-            image: imageUrl,
+            chatImage: imageUrl,
           },
         });
       }
@@ -612,6 +680,79 @@ module.exports.updateGroupDetail = async (req, res, next) => {
       res.json({ message: "Group updated" });
     } catch (error) {
       console.log(error);
+      next(error);
     }
   });
+};
+
+module.exports.getGroupInviteList = async (req, res, next) => {
+  try {
+    const { groupId } = req.body;
+    const user = req.user;
+    if (!groupId) {
+      return createError(400, "Group id is required");
+    }
+    const friendlist = await prisma.friend.findMany({
+      where: {
+        friendId: user.id,
+        status: "FRIEND",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            Profile: true,
+          },
+        },
+      },
+    });
+    const groupPendingMember = await prisma.chatPendingMember.findMany({
+      where: {
+        chatId: +groupId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            Profile: true,
+          },
+        },
+      },
+    });
+    const groupMembers = await prisma.chatMember.findMany({
+      where: {
+        chatId: +groupId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            Profile: true,
+          },
+        },
+      },
+    });
+    //filter out friendlist and group members and sort by Profile name
+    const groupInviteList = friendlist
+      .filter(
+        (friend) =>
+          !groupMembers.some((member) => member.user.id === friend.user.id) &&
+          !groupPendingMember.some(
+            (member) => member.user.id === friend.user.id
+          )
+      )
+      .sort((a, b) =>
+        a.user.Profile[0].name.localeCompare(b.user.Profile[0].name)
+      );
+    res.json({ groupInviteList });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
 };

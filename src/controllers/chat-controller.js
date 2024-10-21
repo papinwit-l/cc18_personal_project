@@ -157,6 +157,16 @@ module.exports.getChatMessages = async (req, res, next) => {
       where: {
         chatId: +chatId,
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            Profile: true,
+          },
+        },
+      },
     });
     res.status(200).json({
       message: "Chat messages fetched successfully",

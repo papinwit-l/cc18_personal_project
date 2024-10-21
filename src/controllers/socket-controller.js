@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const cloudinary = require("../config/cloudinary");
+const e = require("express");
 
 module.exports.message = (socket, io) => async (data) => {
   try {
@@ -12,6 +13,19 @@ module.exports.message = (socket, io) => async (data) => {
         userId: +senderId,
         message: message,
         messageType: "TEXT",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            Profile: {
+              select: {
+                profileImage: true,
+              },
+            },
+          },
+        },
       },
     });
     // console.log(result);
@@ -81,6 +95,21 @@ module.exports.imageSend = (socket, io) => async (data) => {
         userId: +senderId,
         message: imageUrl,
         messageType: "IMAGE",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            Profile: {
+              select: {
+                name: true,
+                profileImage: true,
+              },
+            },
+          },
+        },
       },
     });
 
