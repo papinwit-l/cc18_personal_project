@@ -7,5 +7,9 @@ router.post("/createchat/", chatController.createChat);
 router.get("/getallprivatechats", chatController.getAllPrivateChats);
 router.get("/getchatmessages/:chatId", chatController.getChatMessages);
 router.get("/getsenderdetails/:senderId", chatController.getSenderDetails);
+router.get(
+  "/getmoremessages/:chatId/:lastMessageId",
+  chatController.getMoreMessages
+);
 
 module.exports = router;

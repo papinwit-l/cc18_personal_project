@@ -284,6 +284,9 @@ module.exports.acceptGroupInvite = async (req, res, next) => {
     io.emit("groupUpdate-" + req.user.id, {
       groupMembers,
     });
+    io.emit("newChat-", +req.user.id, {
+      message: "join room",
+    });
 
     res.json({ message: "Group invite accepted" });
   } catch (error) {
@@ -322,6 +325,11 @@ module.exports.leaveGroup = async (req, res, next) => {
     const io = req.io;
     const { groupId } = req.params;
     //check no member left
+    const groupPendingMember = await prisma.chatPendingMember.findMany({
+      where: {
+        chatId: +groupId,
+      },
+    });
     const groupMembers = await prisma.chatMember.findMany({
       where: {
         chatId: +groupId,
@@ -337,7 +345,7 @@ module.exports.leaveGroup = async (req, res, next) => {
         },
       },
     });
-    if (groupMembers.length === 1) {
+    if (groupMembers.length === 1 && groupPendingMember.length === 0) {
       //delete all messages
       const deleteMessages = await prisma.chatMessage.deleteMany({
         where: {

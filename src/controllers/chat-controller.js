@@ -153,6 +153,22 @@ module.exports.getAllPrivateChats = async (req, res, next) => {
 module.exports.getChatMessages = async (req, res, next) => {
   try {
     const { chatId } = req.params;
+    //limite get message to 20 meesages
+    // const chatMessages = await prisma.chatMessage.findMany({
+    //   where: {
+    //     chatId: +chatId,
+    //   },
+    //   include: {
+    //     user: {
+    //       select: {
+    //         id: true,
+    //         username: true,
+    //         email: true,
+    //         Profile: true,
+    //       },
+    //     },
+    //   },
+    // });
     const chatMessages = await prisma.chatMessage.findMany({
       where: {
         chatId: +chatId,
@@ -167,7 +183,13 @@ module.exports.getChatMessages = async (req, res, next) => {
           },
         },
       },
+      orderBy: {
+        id: "desc",
+      },
+      take: 10,
     });
+    //reverse the array
+    chatMessages.reverse();
     res.status(200).json({
       message: "Chat messages fetched successfully",
       chatMessages,
@@ -194,6 +216,44 @@ module.exports.getSenderDetails = async (req, res, next) => {
     res.status(200).json({
       message: "Sender details fetched successfully",
       sender,
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+module.exports.getMoreMessages = async (req, res, next) => {
+  try {
+    const { chatId, lastMessageId } = req.params;
+    console.log(chatId, lastMessageId);
+    const chatMessages = await prisma.chatMessage.findMany({
+      where: {
+        chatId: +chatId,
+        id: {
+          lt: +lastMessageId,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            Profile: true,
+          },
+        },
+      },
+      orderBy: {
+        id: "desc",
+      },
+      take: 5,
+    });
+    //reverse the array
+    chatMessages.reverse();
+    res.status(200).json({
+      message: "Chat messages fetched successfully",
+      chatMessages,
     });
   } catch (error) {
     console.log(error);

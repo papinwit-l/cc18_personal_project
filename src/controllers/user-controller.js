@@ -223,6 +223,7 @@ module.exports.acceptFriendRequest = async (req, res, next) => {
       },
     });
     // req.io.emit("friendUpdate", { result, result2 });
+    req.io.emit("newChat-" + req.user.id, { result, result2 });
     req.io.emit("friendUpdate-" + req.user.id, { result, result2 });
     req.io.emit("friendUpdate-" + friendId, { result, result2 });
     res.status(200).json({ message: "Friend request accepted" });
@@ -402,33 +403,33 @@ module.exports.unfriend = async (req, res, next) => {
           id: privateChat.id,
         },
       });
-    }
-    //delete all chat notify
-    const findNotify = await prisma.chatNotify.findFirst({
-      where: {
-        userId: +req.user.id,
-        chatId: privateChat.id,
-      },
-    });
-    if (findNotify) {
-      await prisma.chatNotify.delete({
+      //delete all chat notify
+      const findNotify = await prisma.chatNotify.findFirst({
         where: {
-          id: findNotify.id,
+          userId: +req.user.id,
+          chatId: privateChat.id,
         },
       });
-    }
-    const findNotify2 = await prisma.chatNotify.findFirst({
-      where: {
-        userId: +friendId,
-        chatId: privateChat.id,
-      },
-    });
-    if (findNotify2) {
-      await prisma.chatNotify.delete({
+      if (findNotify) {
+        await prisma.chatNotify.delete({
+          where: {
+            id: findNotify.id,
+          },
+        });
+      }
+      const findNotify2 = await prisma.chatNotify.findFirst({
         where: {
-          id: findNotify2.id,
+          userId: +friendId,
+          chatId: privateChat.id,
         },
       });
+      if (findNotify2) {
+        await prisma.chatNotify.delete({
+          where: {
+            id: findNotify2.id,
+          },
+        });
+      }
     }
     // req.io.emit("friendUpdate", { result, result2 });
     req.io.emit("friendUpdate-" + req.user.id, { result, result2 });
